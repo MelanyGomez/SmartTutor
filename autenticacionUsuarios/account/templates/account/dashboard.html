@@ -1,12 +1,76 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}
-    Dashboard
+    SmartTutor
 {% endblock %}
 
 {% block content %}
 <div class="column is-three-quarters">
-    <h1>    Dashboard</h1>
-    <p>     Welcome to your dashboard.</p>
+    <h1>SmartTutor</h1>
+    <p>Welcome to your dashboard.</p>
+    <img src="{% static 'images/avatar_img.PNG' %}" alt="My image">
+
+    <!-- Sección de grabación de audio -->
+    <h2>Grabar Audio al Estilo WhatsApp</h2>
+    <button id="recordButton" class="recording-button">
+        <img src="{% static 'images/icono_grabar.png' %}" width="20" height="20" alt="My image">
+    </button>
+
+    <audio id="audioPlayback" controls></audio>
 </div>
+
+<!-- Agrega aquí el código para grabación de audio -->
+<script>
+    let mediaRecorder;
+    let audioChunks = [];
+    let isRecording = false;
+
+    // Acceder al micrófono
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+            mediaRecorder = new MediaRecorder(stream);
+
+            // Cuando se graba un fragmento de audio
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+
+            // Cuando termina de grabar
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                const audioUrl = URL.createObjectURL(audioBlob);
+                document.getElementById('audioPlayback').src = audioUrl;
+                audioChunks = [];
+            };
+        })
+        .catch(err => {
+            console.error('Error al acceder al micrófono: ', err);
+        });
+
+    // Función para comenzar la grabación cuando se presiona el botón
+    document.getElementById('recordButton').addEventListener('mousedown', () => {
+        if (!isRecording) {
+            mediaRecorder.start();
+            isRecording = true;
+        }
+    });
+
+    // Función para detener la grabación cuando se suelta el botón
+    document.getElementById('recordButton').addEventListener('mouseup', () => {
+        if (isRecording) {
+            mediaRecorder.stop();
+            isRecording = false;
+        }
+    });
+
+    // Opcional: También podemos detener la grabación si el mouse se va fuera del botón
+    document.getElementById('recordButton').addEventListener('mouseleave', () => {
+        if (isRecording) {
+            mediaRecorder.stop();
+            isRecording = false;
+        }
+    });
+</script>
+
 {% endblock %}
