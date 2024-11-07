@@ -6,6 +6,12 @@ from django.http import HttpResponse
 
 from .forms import LoginForm, UserRegistrationForm
 
+# autenticacionUsuarios/views.py
+from django.shortcuts import render
+
+def home(request):
+    return render(request, 'account/home.html')
+
 
 # Create your views here.
 def user_login(request):
