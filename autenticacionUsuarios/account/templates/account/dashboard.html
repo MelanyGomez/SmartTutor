@@ -1,76 +1,364 @@
-{% extends "base.html" %}
 {% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <title>Template de Página</title>
+</head>
+<body>
+<header>
+    <nav>
+        <a href="#">INICIO</a>
+        <a href="#">BLOG</a>
+        <a href="#">ACERCA DE</a>
+        <a href="#">CONTACTO</a>
+    </nav>
+</header>
 
-{% block title %}
-    SmartTutor
-{% endblock %}
+<main>
+    <div class="container">
+        <div class="image-section">
+            <img src="{% static 'tutor/img/hamburguesa.jpg' %}" alt="Hamburguesa">
+        </div>
 
-{% block content %}
-<div class="column is-three-quarters">
-    <h1>SmartTutor</h1>
-    <p>Welcome to your dashboard.</p>
-    <img src="{% static 'images/avatar_img.PNG' %}" alt="My image">
+        <div class="character-section">
+            <img src="{% static 'tutor/img/avatar.jpg' %}" alt="avatar">
+            <div class="microphone-icon" id="microphone">
+                <img src="{% static 'tutor/img/micro.png' %}" alt="microfono">
+            </div>
+        </div>
 
-    <!-- Sección de grabación de audio -->
-    <h2>Grabar Audio al Estilo WhatsApp</h2>
-    <button id="recordButton" class="recording-button">
-        <img src="{% static 'images/icono_grabar.png' %}" width="20" height="20" alt="My image">
-    </button>
-
-    <audio id="audioPlayback" controls></audio>
-</div>
-
-<!-- Agrega aquí el código para grabación de audio -->
+        <div class="text-section">
+            <div id="texto-recibido"></div>
+        </div>
+    </div>
+</main>
 <script>
-    let mediaRecorder;
-    let audioChunks = [];
-    let isRecording = false;
+if ('webkitSpeechRecognition' in window) {
+    const recognition = new webkitSpeechRecognition();
+    recognition.lang = 'es-ES';
+    recognition.continuous = false;
+    recognition.interimResults = false;
 
-    // Acceder al micrófono
-    navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(stream => {
-            mediaRecorder = new MediaRecorder(stream);
+    const microphoneIcon = document.getElementById('microphone');
+    const textoRecibidoDiv = document.getElementById('texto-recibido');
+    let recognitionInProgress = false;
 
-            // Cuando se graba un fragmento de audio
-            mediaRecorder.ondataavailable = event => {
-                audioChunks.push(event.data);
-            };
+    // Inicializar el sintetizador de voz al cargar la página
+    let synth = window.speechSynthesis;
+    let voices = [];
 
-            // Cuando termina de grabar
-            mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                const audioUrl = URL.createObjectURL(audioBlob);
-                document.getElementById('audioPlayback').src = audioUrl;
-                audioChunks = [];
-            };
-        })
-        .catch(err => {
-            console.error('Error al acceder al micrófono: ', err);
+    function loadVoices() {
+        voices = synth.getVoices();
+        // Intentar encontrar una voz en español
+        return voices.find(voice => voice.lang.startsWith('es')) || voices[0];
+    }
+
+    // Cargar voces cuando estén disponibles
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = loadVoices;
+    }
+
+    function startRecognition() {
+        if (recognitionInProgress) return;
+        recognitionInProgress = true;
+        recognition.start();
+        microphoneIcon.innerHTML = '<img src="{% static "tutor/img/micro.png" %}" alt="microfono activo">';
+    }
+
+    function messageProbability(message, listOfWords, singleResponse = false, requiredWords = []) {
+        let messageLower = message.toLowerCase();
+        let wordsInMessage = listOfWords.filter(word => messageLower.includes(word.toLowerCase()));
+
+        if (requiredWords.length > 0 && !requiredWords.every(reqWord => messageLower.includes(reqWord.toLowerCase()))) {
+            return 0;
+        }
+
+        return singleResponse ? (wordsInMessage.length > 0 ? 1 : 0) : wordsInMessage.length / listOfWords.length;
+    }
+
+    function response(botResponse, listOfWords, singleResponse = false, requiredWords = [], message) {
+        return {
+            response: botResponse,
+            probability: messageProbability(message, listOfWords, singleResponse, requiredWords)
+        };
+    }
+
+    function checkAllMessage(message) {
+        let highestProb = {};
+
+        function addResponse(botResponse, listOfWords, singleResponse = false, requiredWords = []) {
+            let responseObj = response(botResponse, listOfWords, singleResponse, requiredWords, message);
+            highestProb[botResponse] = responseObj.probability;
+        }
+
+        addResponse('¡Hola! ¿En qué puedo ayudarte?', ['hola', 'qué tal', 'saludos', 'buenas'], true);
+        addResponse('¡Nos vemos! Cuídate.', ['adiós', 'chao', 'nos vemos', 'hasta luego'], true);
+        addResponse('Encantado de ayudarte. ¡Hasta la próxima!', ['gracias', 'muchas gracias', 'agradecido'], true);
+        addResponse('Estoy aquí para ayudarte. ¿En qué necesitas ayuda?', ['qué', 'puedes', 'hacer', 'ayudar'], false, ['ayudar']);
+        addResponse('Soy un chatbot que responde preguntas básicas.', ['quién', 'eres', 'qué', 'eres'], false, ['quién', 'eres']);
+        addResponse('Python es un lenguaje de programación interpretado y de alto nivel.', ['qué', 'es', 'python'], false, ['python']);
+        addResponse('Python fue creado por Guido van Rossum y lanzado en 1991.', ['quién', 'creó', 'python'], false, ['creó', 'python']);
+        addResponse('Python es conocido por su simplicidad y facilidad de lectura.', ['por qué', 'python', 'fácil', 'leer'], false, ['fácil', 'python']);
+        addResponse('Python tiene una gran comunidad de desarrolladores y muchos recursos disponibles.', ['python', 'comunidad', 'recursos'], false, ['comunidad', 'python']);
+        addResponse('Python es de código abierto y gratuito para cualquiera que quiera usarlo.', ['python', 'es', 'gratis', 'código', 'abierto'], false, ['python', 'gratis']);
+        addResponse('Python es muy popular en ciencia de datos y aprendizaje automático.', ['python', 'aplicación', 'ciencia', 'datos'], false, ['ciencia', 'datos']);
+        addResponse('Python se usa en el desarrollo web, ciencia de datos, automatización y mucho más.', ['para', 'qué', 'sirve', 'python'], false, ['sirve', 'python']);
+        addResponse('Python es compatible con bibliotecas como NumPy, Pandas, y TensorFlow.', ['bibliotecas', 'python'], false, ['bibliotecas', 'python']);
+        addResponse('Python es un lenguaje multiplataforma, lo que significa que se puede ejecutar en varios sistemas operativos.', ['python', 'multiplataforma'], false, ['multiplataforma', 'python']);
+        addResponse('Python soporta múltiples paradigmas de programación, como programación orientada a objetos y funcional.', ['paradigmas', 'python'], false, ['paradigmas', 'python']);
+        addResponse('La extensión de archivo de los programas en Python es ".py".', ['extensión', 'archivo', 'python'], false, ['extensión', 'archivo']);
+        addResponse('La sintaxis de Python está diseñada para ser fácil de aprender y leer.', ['sintaxis', 'python', 'fácil'], false, ['sintaxis', 'python']);
+        addResponse('Python 2 y Python 3 son dos versiones principales del lenguaje, con Python 3 siendo el más usado.', ['python', 'versiones', '2', '3'], false, ['versiones', 'python']);
+        addResponse('Python 3 introdujo mejoras significativas respecto a Python 2, incluyendo cambios en la sintaxis.', ['mejoras', 'python', '3'], false, ['mejoras', 'python', '3']);
+        addResponse('La indentación en Python es muy importante y se usa para definir bloques de código.', ['indentación', 'python', 'importante'], false, ['indentación', 'python']);
+        addResponse('Python es popular en el desarrollo de inteligencia artificial y aprendizaje profundo.', ['python', 'inteligencia', 'artificial', 'aprendizaje', 'profundo'], false, ['python', 'inteligencia']);
+        addResponse('Django y Flask son frameworks populares para desarrollo web en Python.', ['framework', 'web', 'python'], false, ['framework', 'python']);
+        addResponse('Python es un lenguaje interpretado, lo que significa que no se compila a código máquina antes de ejecutarse.', ['python', 'interpretado'], false, ['python', 'interpretado']);
+        addResponse('Python permite usar operadores aritméticos como +, -, * y / para cálculos básicos.', ['operadores', 'aritméticos', 'python'], false, ['aritméticos', 'python']);
+        addResponse('Los strings en Python son inmutables, lo que significa que no se pueden modificar una vez creados.', ['strings', 'inmutables', 'python'], false, ['strings', 'inmutables']);
+        addResponse('Python cuenta con estructuras de datos como listas, tuplas, conjuntos y diccionarios.', ['estructuras', 'datos', 'python'], false, ['estructuras', 'python']);
+        addResponse('Python permite escribir funciones con la palabra clave "def".', ['cómo', 'escribir', 'función', 'python'], false, ['escribir', 'función', 'python']);
+        addResponse('En Python, puedes definir clases y objetos para implementar programación orientada a objetos.', ['programación', 'orientada', 'objetos', 'python'], false, ['orientada', 'objetos', 'python']);
+        addResponse('Python tiene un administrador de paquetes llamado pip que facilita la instalación de bibliotecas.', ['pip', 'instalar', 'bibliotecas', 'python'], false, ['pip', 'python']);
+        addResponse('Los comentarios en Python se crean usando el símbolo "#".', ['comentarios', 'python'], false, ['comentarios', 'python']);
+        addResponse('Los bucles en Python incluyen "for" y "while".', ['bucles', 'python'], false, ['bucles', 'python']);
+        addResponse('Las listas en Python son colecciones ordenadas y modificables de elementos.', ['listas', 'python'], false, ['listas', 'python']);
+        addResponse('Python usa una recolección de basura automática para la gestión de memoria.', ['recolección', 'basura', 'python'], false, ['recolección', 'basura', 'python']);
+        addResponse('Python permite la manipulación de archivos con funciones como open(), read(), y write().', ['archivos', 'python'], false, ['archivos', 'python']);
+        addResponse('Puedes crear un entorno virtual en Python usando venv para gestionar dependencias.', ['entorno', 'virtual', 'python'], false, ['entorno', 'python']);
+        addResponse('Python tiene un REPL (Read-Eval-Print Loop) que permite ejecutar código en tiempo real.', ['REPL', 'python'], false, ['REPL', 'python']);
+        addResponse('Python es popular en scripting para automatizar tareas repetitivas.', ['scripting', 'automatizar', 'python'], false, ['scripting', 'python']);
+        addResponse('Python permite la manipulación de bases de datos con bibliotecas como SQLite y SQLAlchemy.', ['bases', 'datos', 'python'], false, ['bases', 'python']);
+        addResponse('Python es muy utilizado en análisis de datos y visualización con herramientas como Matplotlib.', ['análisis', 'datos', 'python'], false, ['análisis', 'python']);
+        addResponse('Jupyter Notebooks es una herramienta popular para el desarrollo en Python, especialmente en ciencia de datos.', ['Jupyter', 'Notebooks', 'python'], false, ['Jupyter', 'python']);
+        addResponse('Python es extensible y permite usar módulos de otros lenguajes como C o C++.', ['extensible', 'python'], false, ['extensible', 'python']);
+        addResponse('Python se puede integrar con aplicaciones web y frameworks frontend mediante APIs.', ['integración', 'aplicaciones', 'web', 'python'], false, ['integración', 'python']);
+        addResponse('El entorno de desarrollo PyCharm es uno de los más populares para programar en Python.', ['PyCharm', 'python'], false, ['PyCharm', 'python']);
+        addResponse('Python permite trabajar con archivos JSON para intercambio de datos.', ['JSON', 'archivos', 'python'], false, ['JSON', 'python']);
+        addResponse('Java es un lenguaje de programación orientado a objetos.', ['qué', 'es', 'java'], false, ['java']);
+        addResponse('Java fue desarrollado por Sun Microsystems en 1995.', ['quién', 'creó', 'java'], false, ['java', 'creó']);
+        addResponse('Java es popular en aplicaciones empresariales y Android.', ['dónde', 'se', 'usa', 'java'], false, ['dónde', 'java']);
+        addResponse('En Java, todo el código debe estar dentro de una clase.', ['cómo', 'se', 'estructura', 'java'], false, ['estructura', 'java']);
+        addResponse('Un "int" en Java es un tipo de dato numérico para enteros.', ['qué', 'es', 'int', 'java'], false, ['int', 'java']);
+        addResponse('La JVM es la Java Virtual Machine, que permite ejecutar bytecode de Java.', ['qué', 'es', 'jvm'], false, ['jvm']);
+        addResponse('Java es ampliamente utilizado por su portabilidad y seguridad.', ['por', 'qué', 'usar', 'java'], false, ['usar', 'java']);
+        addResponse('Java utiliza el recolector de basura para la gestión de memoria.', ['qué', 'es', 'garbage', 'collector'], false, ['garbage', 'collector']);
+        addResponse('Java usa excepciones para manejar errores en tiempo de ejecución.', ['cómo', 'manejar', 'errores', 'java'], false, ['errores', 'java']);
+        addResponse('Java es compatible con múltiples sistemas operativos gracias a su JVM.', ['java', 'funciona', 'en', 'diferentes', 'sistemas'], false, ['java', 'sistemas']);
+        addResponse('La clase "String" en Java representa una cadena de caracteres.', ['qué', 'es', 'string', 'java'], false, ['string', 'java']);
+        addResponse('Para declarar una variable en Java se especifica el tipo y luego el nombre.', ['cómo', 'declarar', 'variable', 'java'], false, ['declarar', 'variable']);
+        addResponse('Java soporta conceptos como la herencia, la encapsulación y el polimorfismo.', ['qué', 'es', 'orientación', 'objetos', 'java'], false, ['objetos', 'java']);
+        addResponse('La palabra clave "static" en Java permite acceder a métodos sin instanciar.', ['qué', 'es', 'static', 'java'], false, ['static', 'java']);
+        addResponse('La palabra "final" en Java indica que un valor o clase no puede ser modificado.', ['qué', 'es', 'final', 'java'], false, ['final', 'java']);
+        addResponse('Java tiene bibliotecas para desarrollo web, de escritorio y móvil.', ['qué', 'bibliotecas', 'hay', 'java'], false, ['bibliotecas', 'java']);
+        addResponse('El método main es el punto de entrada de un programa Java.', ['qué', 'es', 'main', 'java'], false, ['main', 'java']);
+        addResponse('Un constructor en Java es un método especial para crear objetos.', ['qué', 'es', 'constructor', 'java'], false, ['constructor', 'java']);
+        addResponse('Java permite la programación concurrente con hilos (threads).', ['cómo', 'usar', 'hilos', 'java'], false, ['hilos', 'java']);
+        addResponse('Para compilar un archivo en Java se usa el comando "javac archivo.java".', ['cómo', 'compilar', 'java'], false, ['compilar', 'java']);
+        addResponse('La palabra "extends" se usa para heredar en Java.', ['cómo', 'heredar', 'java'], false, ['heredar', 'java']);
+        addResponse('La capital de Francia es París.', ['capital', 'francia', 'parís'], false, ['capital', 'francia']);
+        addResponse('La velocidad de la luz es aproximadamente 299,792 kilómetros por segundo.', ['cuál', 'es', 'velocidad', 'luz'], false, ['velocidad', 'luz']);
+        addResponse('El océano más grande del mundo es el Océano Pacífico.', ['océano', 'más', 'grande', 'mundo'], false, ['océano', 'grande']);
+        addResponse('Albert Einstein fue un físico famoso conocido por su teoría de la relatividad.', ['quién', 'es', 'einstein'], false, ['einstein']);
+        addResponse('La Muralla China se construyó para proteger el imperio chino de invasiones.', ['por', 'qué', 'muralla', 'china'], false, ['muralla', 'china']);
+        addResponse('La Mona Lisa es un famoso cuadro pintado por Leonardo da Vinci.', ['quién', 'pintó', 'mona', 'lisa'], false, ['mona', 'lisa']);
+        addResponse('El Monte Everest es la montaña más alta del mundo.', ['cuál', 'montaña', 'más', 'alta'], false, ['montaña', 'alta']);
+        addResponse('William Shakespeare escribió obras como Romeo y Julieta y Hamlet.', ['qué', 'escribió', 'shakespeare'], false, ['shakespeare']);
+        addResponse('La Gran Pirámide de Guiza es una de las siete maravillas del mundo antiguo.', ['cuál', 'gran', 'pirámide', 'guiza'], false, ['pirámide', 'guiza']);
+        addResponse('La tabla periódica organiza los elementos químicos por sus propiedades.', ['qué', 'es', 'tabla', 'periódica'], false, ['tabla', 'periódica']);
+        addResponse('La Revolución Francesa comenzó en 1789 y transformó a Francia.', ['cuándo', 'revolución', 'francesa'], false, ['revolución', 'francesa']);
+        addResponse('La capital de Japón es Tokio.', ['capital', 'japón'], false, ['capital', 'japón']);
+        addResponse('Las células son las unidades básicas de la vida.', ['qué', 'es', 'célula'], false, ['célula']);
+        addResponse('La estatua de la libertad fue un regalo de Francia a Estados Unidos.', ['quién', 'regaló', 'estatua', 'libertad'], false, ['estatua', 'libertad']);
+        addResponse('El sol es una estrella situada en el centro de nuestro sistema solar.', ['qué', 'es', 'sol'], false, ['sol']);
+        addResponse('La pintura "La última cena" fue creada por Leonardo da Vinci.', ['quién', 'pintó', 'última', 'cena'], false, ['última', 'cena']);
+        addResponse('Galileo Galilei es conocido como el padre de la astronomía moderna.', ['quién', 'es', 'galileo'], false, ['galileo']);
+        addResponse('Los mayas desarrollaron un sistema avanzado de escritura y astronomía.', ['qué', 'lograron', 'mayas'], false, ['mayas']);
+        addResponse('La Guerra Fría fue un periodo de tensiones entre Estados Unidos y la Unión Soviética.', ['qué', 'fue', 'guerra', 'fría'], false, ['guerra', 'fría']);
+        addResponse('Cleopatra fue la última reina del antiguo Egipto.', ['quién', 'fue', 'cleopatra'], false, ['cleopatra']);
+        addResponse('El telescopio Hubble ha permitido estudiar galaxias lejanas.', ['para', 'qué', 'es', 'telescopio', 'hubble'], false, ['telescopio', 'hubble']);
+        addResponse('La Declaración de Independencia de Estados Unidos fue firmada en 1776.', ['cuándo', 'declaración', 'independencia'], false, ['declaración', 'independencia']);
+        addResponse('Las pirámides de Egipto fueron construidas como tumbas para los faraones.', ['por', 'qué', 'pirámides', 'egipto'], false, ['pirámides', 'egipto']);
+        addResponse('Isaac Newton formuló la ley de la gravitación universal.', ['qué', 'hizo', 'isaac', 'newton'], false, ['isaac', 'newton']);
+        addResponse('La fotosíntesis es el proceso por el cual las plantas producen su alimento.', ['qué', 'es', 'fotosíntesis'], false, ['fotosíntesis']);
+        addResponse('El pintor Vincent van Gogh es famoso por obras como "La noche estrellada".', ['quién', 'es', 'vincent', 'van', 'gogh'], false, ['vincent', 'van', 'gogh']);
+        addResponse('El Renacimiento fue una época de renacimiento cultural y artístico en Europa.', ['qué', 'es', 'renacimiento'], false, ['renacimiento']);
+        addResponse('La Luna es el satélite natural de la Tierra.', ['qué', 'es', 'luna'], false, ['luna']);
+        addResponse('El Titanic se hundió en 1912 tras chocar con un iceberg.', ['qué', 'pasó', 'titanic'], false, ['titanic']);
+        addResponse('El idioma más hablado en el mundo es el chino mandarín.', ['idioma', 'más', 'hablado', 'mundo'], false, ['idioma', 'hablado']);
+        addResponse('El autor de "El Quijote" es Miguel de Cervantes.', ['quién', 'escribió', 'quijote'], false, ['quijote']);
+        addResponse('La Segunda Guerra Mundial comenzó en 1939 y terminó en 1945.', ['cuándo', 'segunda', 'guerra', 'mundial'], false, ['guerra', 'mundial']);
+        addResponse('La aurora boreal ocurre en las regiones polares del hemisferio norte.', ['qué', 'es', 'aurora', 'boreal'], false, ['aurora', 'boreal']);
+        addResponse('El clima mediterráneo tiene veranos cálidos y secos e inviernos templados.', ['qué', 'es', 'clima', 'mediterráneo'], false, ['clima', 'mediterráneo']);
+        addResponse('El Amazonas es el río más caudaloso del mundo.', ['cuál', 'es', 'río', 'caudaloso'], false, ['río', 'caudaloso']);
+        addResponse('Los romanos eran conocidos por su avanzada ingeniería y arquitectura.', ['qué', 'logros', 'romanos'], false, ['romanos']);
+        addResponse('El Desierto del Sahara es el desierto cálido más grande del mundo.', ['cuál', 'es', 'desierto', 'grande'], false, ['desierto', 'grande']);
+        addResponse('Los planetas del sistema solar son ocho: Mercurio, Venus, Tierra, Marte, Júpiter, Saturno, Urano y Neptuno.', ['cuántos', 'planetas', 'sistema', 'solar'], false, ['planetas', 'sistema', 'solar']);
+        addResponse('La capital de Brasil es Brasilia.', ['capital', 'brasil'], false, ['capital', 'brasil']);
+        addResponse('El Coliseo es un famoso anfiteatro ubicado en Roma, Italia.', ['qué', 'es', 'coliseo'], false, ['coliseo']);
+        addResponse('La Torre Eiffel fue construida en 1889 en París.', ['cuándo', 'se', 'construyó', 'torre', 'eiffel'], false, ['torre', 'eiffel']);
+        addResponse('Los incas eran una civilización avanzada que habitaba los Andes.', ['quiénes', 'eran', 'incas'], false, ['incas']);
+        addResponse('El premio Nobel de la Paz es otorgado anualmente en Oslo, Noruega.', ['dónde', 'premio', 'nobel', 'paz'], false, ['premio', 'nobel']);
+        addResponse('La capa de ozono protege a la Tierra de la radiación ultravioleta.', ['para', 'qué', 'sirve', 'capa', 'ozono'], false, ['capa', 'ozono']);
+        addResponse('Los Alpes son una famosa cadena montañosa en Europa.', ['qué', 'son', 'alpes'], false, ['alpes']);
+        addResponse('El idioma oficial de Brasil es el portugués.', ['qué', 'idioma', 'habla', 'brasil'], false, ['idioma', 'brasil']);
+        addResponse('En el ajedrez, cada jugador comienza con 16 piezas.', ['cuántas', 'piezas', 'ajedrez'], false, ['piezas', 'ajedrez']);
+        addResponse('En la mitología griega, Zeus es el dios del cielo y el trueno.', ['quién', 'es', 'zeus'], false, ['zeus']);
+        addResponse('Las abejas juegan un papel crucial en la polinización de las plantas.', ['para', 'qué', 'sirven', 'abejas'], false, ['abejas']);
+        addResponse('El telescopio espacial James Webb es el sucesor del Hubble.', ['qué', 'es', 'james', 'webb'], false, ['james', 'webb']);
+        addResponse('La Revolución Industrial comenzó en el siglo XVIII en Gran Bretaña.', ['cuándo', 'revolución', 'industrial'], false, ['revolución', 'industrial']);
+        addResponse('El código Morse es un sistema de comunicación con puntos y rayas.', ['qué', 'es', 'código', 'morse'], false, ['código', 'morse']);
+        addResponse('La Mona Lisa es exhibida en el museo del Louvre en París.', ['dónde', 'mona', 'lisa'], false, ['mona', 'lisa']);
+        addResponse('El ser humano tiene 206 huesos en su esqueleto adulto.', ['cuántos', 'huesos', 'humano'], false, ['huesos', 'humano']);
+        addResponse('El agua está compuesta por dos átomos de hidrógeno y uno de oxígeno.', ['qué', 'composición', 'agua'], false, ['composición', 'agua']);
+        addResponse('La Vía Láctea es la galaxia en la que se encuentra nuestro sistema solar.', ['qué', 'es', 'vía', 'láctea'], false, ['vía', 'láctea']);
+        addResponse('El amigurumi es una técnica de tejido japonés que crea muñecos de crochet.', ['qué', 'es', 'amigurumi'], false, ['amigurumi']);
+        addResponse('El amigurumi suele hacerse con crochet, pero también se puede hacer con dos agujas.', ['se', 'puede', 'hacer', 'amigurumi', 'tejer', 'ganchillo'], false, ['amigurumi', 'tejer']);
+        addResponse('El material más común para el amigurumi es el hilo de algodón o acrílico.', ['qué', 'material', 'amigurumi'], false, ['material', 'amigurumi']);
+        addResponse('Se recomienda usar un gancho pequeño para que los puntos queden ajustados.', ['qué', 'gancho', 'usar', 'amigurumi'], false, ['gancho', 'amigurumi']);
+        addResponse('Los ojos de seguridad son ideales para dar un acabado profesional al amigurumi.', ['qué', 'ojos', 'usar', 'amigurumi'], false, ['ojos', 'amigurumi']);
+        addResponse('El anillo mágico es una técnica básica para empezar un amigurumi sin agujero en el centro.', ['cómo', 'hacer', 'anillo', 'mágico'], false, ['anillo', 'mágico']);
+        addResponse('Para rellenar un amigurumi, se utiliza comúnmente fibra de poliéster.', ['qué', 'relleno', 'usar', 'amigurumi'], false, ['relleno', 'amigurumi']);
+        addResponse('El amigurumi se teje en espiral, sin cerrar las vueltas con punto deslizado.', ['cómo', 'tejer', 'espiral', 'amigurumi'], false, ['tejer', 'espiral']);
+        addResponse('La técnica de cambio de color es importante para darle detalles al amigurumi.', ['cómo', 'cambiar', 'color', 'amigurumi'], false, ['cambiar', 'color']);
+        addResponse('El punto bajo es el punto más usado para crear amigurumis.', ['qué', 'punto', 'usar', 'amigurumi'], false, ['punto', 'amigurumi']);
+        addResponse('Para darle peso al amigurumi, se puede añadir piedras pequeñas en el relleno.', ['cómo', 'dar', 'peso', 'amigurumi'], false, ['peso', 'amigurumi']);
+        addResponse('El amigurumi comenzó en Japón, donde se hacía como muñecos para la buena suerte.', ['dónde', 'origen', 'amigurumi'], false, ['origen', 'amigurumi']);
+        addResponse('El término amigurumi proviene del japonés "ami" (tejer) y "nuigurumi" (muñeco de peluche).', ['qué', 'significa', 'amigurumi'], false, ['significado', 'amigurumi']);
+        addResponse('Los patrones de amigurumi pueden ser en diagramas o instrucciones escritas.', ['qué', 'tipo', 'patrones', 'amigurumi'], false, ['patrones', 'amigurumi']);
+        addResponse('Existen muchos tipos de hilo para amigurumi, como algodón, lana y mezcla.', ['qué', 'hilos', 'mejores', 'amigurumi'], false, ['hilos', 'amigurumi']);
+        addResponse('Para principiantes en amigurumi, se recomienda empezar con formas sencillas, como bolas.', ['qué', 'proyecto', 'principiante', 'amigurumi'], false, ['principiante', 'amigurumi']);
+        addResponse('Las agujas de tapicería son útiles para unir las partes de un amigurumi.', ['qué', 'aguja', 'usar', 'unir', 'amigurumi'], false, ['aguja', 'unir']);
+        addResponse('Los patrones de animales son populares en el amigurumi, como osos, gatos y conejos.', ['cuáles', 'animales', 'hacer', 'amigurumi'], false, ['animales', 'amigurumi']);
+        addResponse('El ganchillo de 2-3 mm es ideal para amigurumis pequeños con detalles finos.', ['qué', 'tamaño', 'ganchillo', 'amigurumi'], false, ['tamaño', 'ganchillo']);
+        addResponse('Es importante contar los puntos en amigurumi para mantener la forma correcta.', ['por', 'qué', 'contar', 'puntos', 'amigurumi'], false, ['contar', 'puntos']);
+        addResponse('El amigurumi se puede personalizar con detalles como bordados o accesorios.', ['cómo', 'personalizar', 'amigurumi'], false, ['personalizar', 'amigurumi']);
+        addResponse('Para cambiar de color en amigurumi, es recomendable hacerlo al final del punto.', ['cómo', 'cambiar', 'color', 'amigurumi'], false, ['cambiar', 'color']);
+        addResponse('Un marcador de puntos ayuda a no perderse cuando se teje en espiral.', ['para', 'qué', 'usar', 'marcador', 'puntos'], false, ['marcador', 'puntos']);
+        addResponse('Las formas geométricas básicas son clave en amigurumi: bolas, cilindros y conos.', ['cuáles', 'formas', 'básicas', 'amigurumi'], false, ['formas', 'básicas']);
+        addResponse('El acabado de un amigurumi es importante para que luzca limpio y profesional.', ['qué', 'es', 'acabado', 'amigurumi'], false, ['acabado', 'amigurumi']);
+        addResponse('Los amigurumis son populares como regalos debido a su toque artesanal.', ['por', 'qué', 'regalar', 'amigurumi'], false, ['regalar', 'amigurumi']);
+        addResponse('Para reducir el tamaño de un amigurumi, puedes usar hilo más delgado.', ['cómo', 'hacer', 'amigurumi', 'pequeño'], false, ['amigurumi', 'pequeño']);
+        addResponse('Para limpiar un amigurumi, lávalo a mano y sécalo al aire libre.', ['cómo', 'limpiar', 'amigurumi'], false, ['limpiar', 'amigurumi']);
+        addResponse('Los amigurumis se pueden personalizar con ojos bordados para seguridad infantil.', ['cómo', 'hacer', 'amigurumi', 'seguro', 'niños'], false, ['seguro', 'niños']);
+        addResponse('El amigurumi tridimensional es posible con técnicas avanzadas de modelado.', ['cómo', 'hacer', 'amigurumi', '3d'], false, ['amigurumi', '3d']);
+        addResponse('Hay kits de amigurumi que incluyen hilo, gancho y patrón para principiantes.', ['dónde', 'comprar', 'kit', 'amigurumi'], false, ['kit', 'amigurumi']);
+        addResponse('Los animales de granja como ovejas y vacas son temas comunes en amigurumi.', ['qué', 'hacer', 'animales', 'amigurumi'], false, ['animales', 'amigurumi']);
+        addResponse('Para dar textura al amigurumi, prueba con puntos diferentes como el punto burbuja.', ['qué', 'puntos', 'textura', 'amigurumi'], false, ['puntos', 'textura']);
+        addResponse('Usar hilo de diferentes grosores da efectos variados en el amigurumi.', ['cómo', 'usar', 'hilos', 'diferentes', 'amigurumi'], false, ['hilos', 'amigurumi']);
+        addResponse('Los libros de patrones de amigurumi son útiles para nuevas ideas y técnicas.', ['qué', 'libros', 'patrones', 'amigurumi'], false, ['libros', 'amigurumi']);
+        addResponse('Para evitar que el relleno se salga, usa puntos ajustados en el amigurumi.', ['cómo', 'evitar', 'relleno', 'salga'], false, ['relleno', 'amigurumi']);
+        addResponse('Para una expresión diferente, cambia la posición de los ojos en el amigurumi.', ['cómo', 'dar', 'expresión', 'amigurumi'], false, ['expresión', 'amigurumi']);
+        addResponse('El amigurumi kawaii es popular por su estilo lindo y expresivo.', ['qué', 'es', 'amigurumi', 'kawaii'], false, ['amigurumi', 'kawaii']);
+        addResponse('Los llaveros de amigurumi son populares por su tamaño pequeño y facilidad de hacer.', ['qué', 'hacer', 'llaveros', 'amigurumi'], false, ['llaveros', 'amigurumi']);
+        addResponse('Los amigurumis pueden tomar varias horas según su tamaño y complejidad.', ['cuánto', 'tarda', 'hacer', 'amigurumi'], false, ['tiempo', 'amigurumi']);
+        addResponse('Para un acabado suave, asegúrate de usar hilo de buena calidad.', ['cómo', 'hacer', 'amigurumi', 'suave'], false, ['amigurumi', 'suave']);
+        addResponse('El arte del amigurumi ha crecido en popularidad a nivel mundial.', ['por', 'qué', 'amigurumi', 'popular'], false, ['amigurumi', 'popular']);
+        addResponse('Puedes agregar aroma al amigurumi colocando esencia en el relleno.', ['cómo', 'hacer', 'amigurumi', 'aromático'], false, ['amigurumi', 'aromático']);
+        addResponse('Es posible añadir alambre al amigurumi para hacerlo posable.', ['cómo', 'hacer', 'amigurumi', 'posable'], false, ['amigurumi', 'posable']);
+        addResponse('Los kits de amigurumi para principiantes traen todos los materiales necesarios.', ['qué', 'incluye', 'kit', 'amigurumi'], false, ['kit', 'amigurumi']);
+        addResponse('Para bordar una boca en el amigurumi, usa una aguja de punta fina.', ['cómo', 'bordar', 'boca', 'amigurumi'], false, ['boca', 'amigurumi']);
+        addResponse('El amigurumi gigante se hace con hilo grueso y aguja grande.', ['cómo', 'hacer', 'amigurumi', 'gigante'], false, ['amigurumi', 'gigante']);
+        addResponse('Puedes hacer amigurumis temáticos de estaciones o festividades.', ['qué', 'temas', 'amigurumi', 'festivo'], false, ['temas', 'amigurumi']);
+        addResponse('Las plantas y flores también son populares como amigurumis.', ['hacer', 'plantas', 'amigurumi'], false, ['plantas', 'amigurumi']);
+        addResponse('Los personajes de amigurumi se pueden personalizar con ropa y accesorios.', ['cómo', 'poner', 'ropa', 'amigurumi'], false, ['ropa', 'amigurumi']);
+
+
+
+
+        let bestMatch = Object.keys(highestProb).reduce((a, b) => highestProb[a] > highestProb[b] ? a : b);
+
+        return highestProb[bestMatch] < 1 ? 'No entiendo la pregunta, ¿puedes decirlo de otra manera?' : bestMatch;
+    }
+
+    function speak(text) {
+        return new Promise((resolve, reject) => {
+            if ('speechSynthesis' in window) {
+                // Asegurarse de que el sintetizador no esté hablando
+                synth.cancel();
+
+                const utterance = new SpeechSynthesisUtterance(text);
+
+                // Obtener una voz en español si está disponible
+                const spanishVoice = loadVoices();
+                if (spanishVoice) {
+                    utterance.voice = spanishVoice;
+                }
+
+                utterance.lang = 'es-ES';
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+                utterance.volume = 1.0;
+
+                // Eventos para debug
+                utterance.onstart = () => {
+                    console.log('Comenzó a hablar');
+                    textoRecibidoDiv.textContent += '\nHablando...';
+                };
+
+                utterance.onend = () => {
+                    console.log('Terminó de hablar');
+                    textoRecibidoDiv.textContent = textoRecibidoDiv.textContent.replace('\nHablando...', '');
+                    resolve();
+                };
+
+                utterance.onerror = (event) => {
+                    console.error('Error en la síntesis de voz:', event);
+                    reject(event);
+                };
+
+                synth.speak(utterance);
+            } else {
+                console.warn("API de síntesis de voz no disponible");
+                reject("API de síntesis de voz no disponible");
+            }
         });
+    }
 
-    // Función para comenzar la grabación cuando se presiona el botón
-    document.getElementById('recordButton').addEventListener('mousedown', () => {
-        if (!isRecording) {
-            mediaRecorder.start();
-            isRecording = true;
+    recognition.onresult = async function(event) {
+        const transcript = event.results[0][0].transcript;
+        textoRecibidoDiv.textContent = `Tú: ${transcript}`;
+
+        let botResponse = checkAllMessage(transcript);
+        console.log('Respuesta del bot:', botResponse); // Debug
+
+        try {
+            await speak(botResponse);
+        } catch (error) {
+            console.error('Error al reproducir audio:', error);
+            textoRecibidoDiv.textContent += '\nError al reproducir audio. Por favor, intenta de nuevo.';
+        }
+    };
+
+    recognition.onerror = function(event) {
+        console.error("Error en el reconocimiento de voz:", event.error);
+        microphoneIcon.innerHTML = '<img src="{% static "tutor/img/micro.png" %}" alt="microfono">';
+        textoRecibidoDiv.textContent = "Error en el reconocimiento de voz. Por favor, intenta de nuevo.";
+    };
+
+    recognition.onend = function() {
+        recognitionInProgress = false;
+        microphoneIcon.innerHTML = '<img src="{% static "tutor/img/micro.png" %}" alt="microfono">';
+    };
+
+    // Asegurarse de que el audio esté habilitado al hacer clic
+    microphoneIcon.addEventListener('click', async () => {
+        try {
+            // Intentar reproducir un audio silencioso para desbloquear el audio
+            await synth.cancel();
+            await speak(" ");
+            startRecognition();
+        } catch (error) {
+            console.error('Error al inicializar el audio:', error);
         }
     });
 
-    // Función para detener la grabación cuando se suelta el botón
-    document.getElementById('recordButton').addEventListener('mouseup', () => {
-        if (isRecording) {
-            mediaRecorder.stop();
-            isRecording = false;
-        }
-    });
-
-    // Opcional: También podemos detener la grabación si el mouse se va fuera del botón
-    document.getElementById('recordButton').addEventListener('mouseleave', () => {
-        if (isRecording) {
-            mediaRecorder.stop();
-            isRecording = false;
-        }
-    });
+} else {
+    alert("El reconocimiento de voz no es compatible con este navegador.");
+}
 </script>
-
-{% endblock %}
+</body>
+</html>
