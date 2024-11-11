@@ -3,27 +3,33 @@
 <html>
 <head>
     <title>{% block title %}{% endblock %}</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <!--<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">-->
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <link rel="stylesheet" href="{% static 'css/styles2.css' %}">
+    <!--<link rel="stylesheet" href="css/styles2.css">-->
 </head>
 <body>
-    <nav class="navbar" role="navigation" aria-label="main navigation">
-        <div class="navbar-brand">
-            <a class="navbar-item" href="#">
-                <p class="level-item has-text-centered is-size-3">Smart tutor</p>
-            </a>
+    <nav class="navbar">
+        <div class="navbar-logo">
+            <a href="#">Smart Tutor</a>
         </div>
+        <ul class="navbar-menu">
+            <li><a href="{% url 'home' %}">Inicio</a></li>
+            <li><a href="about.html">Acerca de</a></li>
+                {% if user.is_authenticated %}
+                    <li><a href="{% url 'dashboard' %}"> Ir al Dashboard</a></li>
+                {% else %}
+                    <li><a href="{% url 'login' %}" >Iniciar Sesión</a></li>
+                    <li><a href="{% url 'register' %}"> Registrarse</a></li>
+                {% endif %}
+            
+        </ul>
+        <div class="navbar-toggle" id="navbar-toggle">
+            &#9776;
+        </div>
+
         {% if request.user.is_authenticated %} 
         <div id="navbarBasicExample" class="navbar-menu">
-            <div class="navbar-start">
-                <a class="navbar-item" href="{% url 'dashboard' %}">
-                    My dashboard
-                </a>
-                <a class="navbar-item" href="#">
-                    Images
-                </a>
-                <a class="navbar-item" href="#">
-                    People
-                </a>
             </div>
             {% if request.user.is_authenticated %}
                 <div class="navbar-end">

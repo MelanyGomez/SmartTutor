@@ -1,19 +1,38 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="text-center">
-        <h1>Bienvenido a SmartTutor</h1>
-        <p class="lead">Tu plataforma de aprendizaje personalizado</p>
-        
-        <div class="mt-4">
-            {% if user.is_authenticated %}
-                <a href="{% url 'dashboard' %}" class="btn btn-primary btn-lg">Ir al Dashboard</a>
-            {% else %}
-                <a href="{% url 'login' %}" class="btn btn-primary btn-lg me-3">Iniciar Sesión</a>
-                <a href="{% url 'register' %}" class="btn btn-outline-primary btn-lg">Registrarse</a>
-            {% endif %}
+<main>
+    
+    <section class="hero">
+        <video autoplay muted loop class="video-bg">
+            <source src="{% static 'videos/video_dev.mp4' %}" type="video/mp4">
+            Tu navegador no soporta el elemento de video.
+        </video>
+        <div class="hero-content">
+            <h1>TRANSFORMA TUS DUDAS EN</h1>
+            <h1 id="t1">CONOCIMIENTO</h1>
+            <!--<a href="{% url 'register' %}" class="btn btn-outline-primary btn-lg">Registrarse</a>-->
+            <a href="{% url 'register' %}" class="btn btn-outline-primary btn-lg">Registro</a>
+
         </div>
-    </div>
-</div>
+    </section>
+
+    <section class="features container">
+        <div class="feature">
+            <img src="{% static 'images/dev1.webp' %}" alt="¿Qué es smart tutor?" width="200" height="200">
+            <div class="feature-content">
+                <h2>¿Qué es smart tutor?</h2>
+                <p>Lorem ipsum, dolor sit amet consectetur adipisicing elit. Ratione eos quos, explicabo commodi voluptatem dolore quaerat blanditiis hic magnam quibusdam consequatur sint sunt neque delectus similique alias vitae pariatur. Commodi!</p>
+            </div>
+        </div>
+        <div class="feature">
+            <img src="{% static 'images/dev2.webp' %}" alt="¿Cuál es su objetivo?" width="200" height="200">
+            <div class="feature-content">
+                <h2>¿Cuál es su objetivo?</h2>
+                <p>Lorem ipsum, dolor sit amet consectetur adipisicing elit. Ratione eos quos, explicabo commodi voluptatem dolore quaerat blanditiis hic magnam quibusdam consequatur sint sunt neque delectus similique alias vitae pariatur. Commodi!</p>
+            </div>
+        </div>
+    </section>
+</main>
 {% endblock %}

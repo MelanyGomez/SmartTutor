@@ -1,0 +1,6 @@
+#avatar-container {
+    width: 300px; /* Ancho fijo del contenedor */
+    height: 300px; /* Alto fijo del contenedor */
+    border: 1px solid #000; /* Borde visible para que el contenedor sea identificable */
+    margin: 0 auto; /* Centrará el contenedor horizontalmente */
+}
